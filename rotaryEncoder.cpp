@@ -23,7 +23,6 @@ static const unsigned char halfStepsTable[6][4] = {
 };
 
 RotaryEncoder::RotaryEncoder(uint8_t outputAPin, uint8_t outputBPin, RotaryMode mode) : m_dat_pin(outputAPin), m_clk_pin(outputBPin), m_mode(mode) {
-    m_counter = 0;
     m_input_last_state = 0;
     m_cw_button = 0;
     m_ccw_button = 0;
@@ -45,32 +44,7 @@ uint8_t RotaryEncoder::read() {
 
     direction = (m_input_last_state & DIR_MASK);
 
-    if (direction == DIR_CCW) {
-        m_counter++;
-        m_last_changed_time = millis();
-        // m_change_expired = false;
-        // bleGamepad.press(m_ccw_button);
-        // Serial.println("CCW");
-    } else if (direction == DIR_CW) {
-        m_counter--;
-        m_last_changed_time = millis();
-        // m_change_expired = false;
-        // bleGamepad.press(m_cw_button);
-        // Serial.println("CW");
-    } else {
-        // bleGamepad.release(m_cw_button);
-        // bleGamepad.release(m_ccw_button);
-    }
-
-    // if (!m_change_expired && (millis() - m_last_changed_time > 100)) {
-        // m_change_expired = true;
-        // bleGamepad.release(m_cw_button);
-        // bleGamepad.release(m_ccw_button);
-        // return true;
-    // }
-
     return direction;
-    // return (direction == DIR_CCW || direction == DIR_CW);
 }
 
 void RotaryEncoder::set_joystick_id(uint8_t id) {

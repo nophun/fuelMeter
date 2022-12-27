@@ -46,7 +46,7 @@ void OLED::init_ssd1306(uint8_t addr) {
   // display on
   command_ssd1306(addr, 0xA5);
   // contrast aka current, 128 is midpoint    
-  command_ssd1306(addr, 0x81, 0xCF);
+  command_ssd1306(addr, 0x81, 0x80);
   // prechage, rtfm   
   command_ssd1306(addr, 0xD9, 0xF1);
   // vcomh deselect level, 0.77 VDD

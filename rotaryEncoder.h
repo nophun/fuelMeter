@@ -42,7 +42,6 @@ private:
     uint8_t m_clk_pin;
     uint8_t m_cw_button;
     uint8_t m_ccw_button;
-    int m_counter;
     uint8_t m_input_last_state;
     RotaryMode m_mode;
 
