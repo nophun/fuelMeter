@@ -19,6 +19,12 @@ uint32_t button_time {0};
 #if defined(M5PICO)
 BluetoothSerial SerialBT;
 Adafruit_NeoPixel pixels(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+static const uint32_t colorNONE = Adafruit_NeoPixel::Color(0, 0, 0);
+static const uint32_t colorRED = Adafruit_NeoPixel::Color(255, 0, 0);
+static const uint32_t colorBLUE = Adafruit_NeoPixel::Color(0, 0, 255);
+static const uint32_t colorYELLOW = Adafruit_NeoPixel::Color(255, 255, 0);
+static const uint32_t colorGREEN = Adafruit_NeoPixel::Color(0, 255, 0);
+static const uint32_t colorGREENdim = Adafruit_NeoPixel::Color(0, 31, 0);
 #endif
 
 /* Calculator */
@@ -37,6 +43,7 @@ volatile bool fuel_updated {true};
 /*  */
 bool abs_active {false};
 bool tc_active {false};
+bool engine_started {false};
 bool yellow_flag_active {false};
 bool blue_flag_active {false};
 
@@ -46,38 +53,38 @@ RotaryEncoder encoder_a(ROT1_CLK, ROT1_DAT, RotaryMode::FULL_STEP);
 void update_header(void) {
   switch(mode) {
     case displayMode::SHFuelTime:
-      oled.set_header("FUEL REMAINING TIME");
+      oled.set_header("FUEL TIME", Alignment::Center);
       oled.set_value(" ---- ");
       oled.set_unit(UNIT_none);
       break;
     case displayMode::SHFuelLaps:
-      oled.set_header("FUEL REMAINING LAPS");
+      oled.set_header("FUEL LAPS", Alignment::Center);
       oled.set_value(" ---- ");
       oled.set_unit(UNIT_none);
       break;
     case displayMode::SHFuelConsumption:
-      oled.set_header("FUEL CONSUMPTION");
+      oled.set_header("FUEL CONSUMPTION", Alignment::Center);
       oled.set_value(" ---- ");
-      oled.set_unit(UNIT_none);
+      oled.set_unit(UNIT_lL);
       break;
     case displayMode::InputWarmup:
-      oled.set_header("FORMATION LAP?");
+      oled.set_header("FORMATION LAP ?", Alignment::Right);
       oled.set_unit(UNIT_none);
       break;
     case displayMode::InputRaceLength:
       if (custom_race_length) {
-        oled.set_header("RACE REMAINING?");
+        oled.set_header("RACE REMAINING ?", Alignment::Right);
       } else {
-        oled.set_header("RACE LENGTH?");
+        oled.set_header("RACE LENGTH ?", Alignment::Right);
       }
       oled.set_unit(UNIT_min);
       break;
     case displayMode::InputLaptime:
-      oled.set_header("LAPTIME?");
+      oled.set_header("LAPTIME ?", Alignment::Right);
       oled.set_unit(UNIT_none);
       break;
     case displayMode::InputFuelConsumption:
-      oled.set_header("FUEL CONSUMPTION?");
+      oled.set_header("FUEL CONSUMPTION ?", Alignment::Right);
       oled.set_unit(UNIT_lL);
       break;
     case displayMode::CalcFuelNeeded:
@@ -86,7 +93,7 @@ void update_header(void) {
       fuel_updated = true;
       break;
     case displayMode::CalcLaps:
-      oled.set_header("-> LAPS", Alignment::Right);
+      oled.set_header("-> RACE LAPS", Alignment::Right);
       oled.set_unit(UNIT_none);
       fuel_updated = true;
       break;
@@ -155,7 +162,6 @@ void setup() {
 #else
   Wire.begin();
 #endif
-  oled.start();
 
   encoder_a.init();
   attachInterrupt(digitalPinToInterrupt(ROT1_CLK), encoder, CHANGE);
@@ -169,6 +175,32 @@ void setup() {
   pixels.begin();
 #endif
 
+  pixels.setPixelColor(LEDAbs, colorRED);
+  pixels.setPixelColor(LEDRightFlag, colorRED);
+  pixels.setPixelColor(LEDLeftFlag, colorRED);
+  pixels.show();
+  delay(250);
+  pixels.setPixelColor(LEDAbs, colorYELLOW);
+  pixels.setPixelColor(LEDRightFlag, colorYELLOW);
+  pixels.setPixelColor(LEDLeftFlag, colorYELLOW);
+  pixels.show();
+  delay(250);
+  pixels.setPixelColor(LEDAbs, colorGREEN);
+  pixels.setPixelColor(LEDRightFlag, colorGREEN);
+  pixels.setPixelColor(LEDLeftFlag, colorGREEN);
+  pixels.show();
+  delay(250);
+  pixels.setPixelColor(LEDAbs, colorBLUE);
+  pixels.setPixelColor(LEDRightFlag, colorBLUE);
+  pixels.setPixelColor(LEDLeftFlag, colorBLUE);
+  pixels.show();
+  delay(250);
+  pixels.setPixelColor(LEDAbs, colorNONE);
+  pixels.setPixelColor(LEDRightFlag, colorNONE);
+  pixels.setPixelColor(LEDLeftFlag, colorNONE);
+  pixels.show();
+
+  oled.start();
   update_header();
   oled.refresh();
 }
@@ -298,6 +330,11 @@ void get_value_from_SH() {
             blue_flag_active = (buf[1] == '1');
           }
           break;
+        case 'E':
+          if (buf[0] == 'S') {
+            engine_started = (buf[1] == '1');
+          }
+          break;
         default:
           break;
       }
@@ -306,10 +343,7 @@ void get_value_from_SH() {
 }
 
 void update_leds(void) {
-  static const uint32_t colorNONE = pixels.Color(0, 0, 0);
-  static const uint32_t colorRED = pixels.Color(255, 0, 0);
-  static const uint32_t colorBLUE = pixels.Color(0, 0, 255);
-  static const uint32_t colorYELLOW = pixels.Color(255, 255, 0);
+  uint32_t current_time = millis();
 
   if (abs_active) {
     pixels.setPixelColor(LEDAbs, colorRED);
@@ -323,13 +357,19 @@ void update_leds(void) {
     pixels.setPixelColor(LEDTc, colorNONE);
   }
 
+  if (engine_started) {
+    pixels.setPixelColor(LEDAbs, colorNONE);
+  } else {
+    pixels.setPixelColor(LEDAbs, colorGREENdim);
+  }
+
   pixels.setPixelColor(LEDRightFlag, colorNONE);
   pixels.setPixelColor(LEDLeftFlag, colorNONE);
-  if (yellow_flag_active) {
+  if (yellow_flag_active && (current_time / cFlagInterval) % 2) {
     pixels.setPixelColor(LEDRightFlag, colorYELLOW);
     pixels.setPixelColor(LEDLeftFlag, colorYELLOW);
   }
-  if (blue_flag_active) {
+  if (blue_flag_active && (current_time / cFlagInterval) % 2) {
     pixels.setPixelColor(LEDRightFlag, colorBLUE);
     pixels.setPixelColor(LEDLeftFlag, colorBLUE);
   }
@@ -356,14 +396,14 @@ void loop() {
         oled.set_value(display_str);
       }
       break;
-    case displayMode::InputRaceLength:
+    case displayMode::InputLaptime:
       if (oled_updated) {
         adjust_parameter(current_dir, &laptime, cMIN_LAPTIME, cMAX_LAPTIME);
         sprintf(display_str, "%d:%02d", laptime / cSEC_IN_MIN, laptime % cSEC_IN_MIN);
         oled.set_value(display_str);
       }
       break;
-    case displayMode::InputLaptime:
+    case displayMode::InputRaceLength:
       if (oled_updated) {
         if (custom_race_length) {
           adjust_parameter(current_dir, &race_length, cMIN_RACE_REMAINING, cMAX_RACE_REMAINING);
@@ -410,6 +450,5 @@ void loop() {
   }
 
   update_leds();
-
   pixels.show();
 }

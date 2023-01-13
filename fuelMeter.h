@@ -15,11 +15,12 @@
 #define LED_PIN         32
 #define NUM_PIXELS      4
 enum LEDs {
-  LEDAbs,
   LEDTc,
+  LEDAbs,
   LEDRightFlag,
   LEDLeftFlag,
 };
+static constexpr uint16_t cFlagInterval = 500U;
 #endif
 #define OLED_ADDRESS    0x3C
 
